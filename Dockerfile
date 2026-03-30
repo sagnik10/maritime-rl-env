@@ -1,9 +1,5 @@
-FROM python:3.10
-
-WORKDIR /app
-
-COPY . .
-
-RUN pip install -r requirements.txt
-
-CMD ["python", "env/api.py"]
+FROM python:3.10 
+WORKDIR /app 
+COPY . /app 
+RUN pip install --no-cache-dir -r requirements.txt 
+CMD ["python","-m","web.app"] 
