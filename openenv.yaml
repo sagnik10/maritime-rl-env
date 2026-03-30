@@ -1,0 +1,3 @@
+name: maritime-env
+description: Maritime routing simulation environment
+entrypoint: env.environment:MaritimeEnv

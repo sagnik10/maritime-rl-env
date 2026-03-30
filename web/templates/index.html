@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+<style>
+html,body{
+margin:0;
+height:100%;
+overflow:hidden;
+font-family:Segoe UI;
+background:#020617;
+color:#e2e8f0;
+}
+
+.container{
+display:flex;
+height:100vh;
+width:100vw;
+}
+
+#map{
+flex:1;
+}
+
+#panel{
+width:360px;
+background:#020b1a;
+border-left:1px solid rgba(255,255,255,0.05);
+padding:15px;
+overflow:auto;
+}
+
+h2,h3{color:#38bdf8;margin:10px 0}
+
+.card{
+background:rgba(255,255,255,0.03);
+padding:10px;
+border-radius:10px;
+margin-bottom:10px;
+}
+
+.event{
+color:#ff4d4d;
+background:rgba(255,0,0,0.08);
+padding:6px;
+border-radius:6px;
+margin:5px 0;
+}
+
+.routeinfo{
+font-size:12px;
+color:#94a3b8;
+margin-bottom:6px;
+}
+
+.chatbox{
+background:#000;
+height:180px;
+overflow:auto;
+padding:8px;
+border-radius:8px;
+}
+
+.msg-user{color:#22d3ee}
+.msg-bot{color:#cbd5f5}
+
+.input-row{
+display:flex;
+gap:5px;
+margin-top:8px;
+}
+
+input{
+flex:1;
+padding:10px;
+background:#020617;
+color:white;
+border:1px solid #334155;
+}
+
+button{
+background:#22d3ee;
+border:none;
+padding:10px;
+cursor:pointer;
+}
+
+.ship{
+width:18px;
+height:18px;
+background:#00f5ff;
+border:2px solid white;
+border-radius:3px;
+position:absolute;
+top:50%;
+left:50%;
+transform:translate(-50%,-50%) rotate(45deg);
+box-shadow:
+0 0 6px #00f5ff,
+0 0 12px rgba(0,245,255,0.6),
+0 0 18px rgba(0,245,255,0.3);
+}
+
+.ship::after{
+content:'';
+position:absolute;
+top:50%;
+left:50%;
+width:30px;
+height:30px;
+border-radius:50%;
+background:rgba(0,245,255,0.2);
+transform:translate(-50%,-50%);
+animation:pulse 1.5s infinite;
+}
+
+@keyframes pulse{
+0%{transform:translate(-50%,-50%) scale(0.5);opacity:0.8;}
+100%{transform:translate(-50%,-50%) scale(1.5);opacity:0;}
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+<div id="map"></div>
+
+<div id="panel">
+
+<h2>Live System</h2>
+<div id="stats" class="card"></div>
+
+<h3>Weather & Conflicts</h3>
+<div id="events" class="card"></div>
+
+<h3>Routes</h3>
+<div id="routesinfo" class="card"></div>
+
+<h3>AI Chat</h3>
+<div id="chatlog" class="chatbox"></div>
+
+<div class="input-row">
+<input id="chatinput" placeholder="@route @weather @ships"/>
+<button onclick="sendMsg()">Send</button>
+</div>
+
+</div>
+</div>
+
+<script>
+
+let map=L.map('map',{
+minZoom:2,
+maxZoom:7,
+maxBounds:[[-80,-180],[80,180]]
+}).setView([20,40],3)
+
+L.tileLayer(
+'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+{noWrap:true}
+).addTo(map)
+
+let routeLines=[]
+let routeOffsets=[]
+let shipMarkers={}
+let shipTargets={}
+
+const socket=io()
+
+function lerp(a,b,t){return a+(b-a)*t}
+
+/* RECEIVE DATA */
+socket.on("update",d=>{
+
+/* CREATE ROUTES ONLY ONCE */
+if(routeLines.length===0){
+
+d.routes.forEach((r,i)=>{
+
+let line=L.polyline(r.path,{
+color:'#00eaff',
+weight:3,
+dashArray:'12,12'
+}).addTo(map)
+
+routeLines.push(line)
+routeOffsets.push(0)
+
+/* START POINT */
+L.circleMarker(r.start,{
+radius:6,
+color:'#22c55e'
+})
+.addTo(map)
+.bindTooltip(
+"START<br>"+r.start[0].toFixed(2)+","+r.start[1].toFixed(2),
+{permanent:true, direction:"top"}
+)
+
+/* END POINT */
+L.circleMarker(r.end,{
+radius:6,
+color:'#ef4444'
+})
+.addTo(map)
+.bindTooltip(
+"END<br>"+r.end[0].toFixed(2)+","+r.end[1].toFixed(2),
+{permanent:true, direction:"top"}
+)
+
+})
+
+}
+
+/* SHIPS */
+d.ships.forEach((s,i)=>{
+
+if(!shipMarkers[i]){
+
+let icon=L.divIcon({
+className:"",
+html:`<div style="
+width:14px;
+height:14px;
+background:#00f5ff;
+border-radius:50%;
+box-shadow:0 0 10px #00f5ff;
+"></div>`,
+iconSize:[14,14],
+iconAnchor:[7,7]
+})
+
+let marker=L.marker([s.lat,s.lon],{icon}).addTo(map)
+
+/* ALWAYS VISIBLE LAT/LON */
+marker.bindTooltip("",{
+permanent:true,
+direction:"right",
+offset:[10,0]
+})
+
+marker.trail=L.polyline([],{
+color:"#00f5ff",
+weight:2,
+opacity:0.6
+}).addTo(map)
+
+shipMarkers[i]=marker
+shipTargets[i]={lat:s.lat,lon:s.lon}
+
+}else{
+shipTargets[i]={lat:s.lat,lon:s.lon}
+}
+
+})
+
+/* UI */
+document.getElementById("stats").innerHTML=
+"Ships: "+d.ships.length+" | Routes: "+d.routes.length
+
+document.getElementById("events").innerHTML=
+d.events.map(e=>"<div class='event'>"+e+"</div>").join("")
+
+})
+
+/* CONTINUOUS ANIMATION LOOP */
+function animate(){
+
+/* ROUTE FLOW ANIMATION */
+routeLines.forEach((line,i)=>{
+routeOffsets[i]+=1
+line.setStyle({dashOffset:routeOffsets[i]})
+})
+
+/* SHIP MOVEMENT */
+Object.keys(shipMarkers).forEach(i=>{
+
+let marker=shipMarkers[i]
+let target=shipTargets[i]
+
+if(!target) return
+
+let pos=marker.getLatLng()
+
+/* STRONGER MOVEMENT */
+let lat=lerp(pos.lat,target.lat,0.15)
+let lon=lerp(pos.lng,target.lon,0.15)
+
+marker.setLatLng([lat,lon])
+
+/* UPDATE LAT/LON TEXT */
+marker.setTooltipContent(
+lat.toFixed(2)+", "+lon.toFixed(2)
+)
+
+/* TRAIL */
+let trail=marker.trail.getLatLngs()
+trail.push([lat,lon])
+if(trail.length>25) trail.shift()
+marker.trail.setLatLngs(trail)
+
+})
+
+requestAnimationFrame(animate)
+}
+
+animate()
+
+/* CHAT */
+function sendMsg(){
+
+let input=document.getElementById("chatinput")
+let q=input.value
+
+if(!q) return
+
+let log=document.getElementById("chatlog")
+
+log.innerHTML+="<div class='msg-user'>> "+q+"</div>"
+
+fetch('/chat',{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({q})
+})
+.then(r=>r.json())
+.then(d=>{
+log.innerHTML+="<div class='msg-bot'>"+d.response+"</div><br>"
+log.scrollTop=log.scrollHeight
+})
+
+input.value=""
+}
+
+document.getElementById("chatinput").addEventListener("keypress",e=>{
+if(e.key==="Enter") sendMsg()
+})
+
+</script>
+
+</body>
+</html>
