@@ -10,32 +10,24 @@ def home():
 
 @app.route("/reset", methods=["POST"])
 def reset():
-    try:
-        state = env.reset()
-        return jsonify({"obs": state})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    state = env.reset()
+    return jsonify({"obs": state})
 
 @app.route("/step", methods=["POST"])
 def step():
-    try:
-        action = request.json.get("action")
-        obs, reward, done, info = env.step(Action(**action))
-        return jsonify({
-            "obs": obs,
-            "reward": reward,
-            "done": done,
-            "info": info
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    data = request.get_json()
+    action = Action(**data["action"])
+    obs, reward, done, info = env.step(action)
+    return jsonify({
+        "obs": obs,
+        "reward": reward,
+        "done": done,
+        "info": info
+    })
 
 @app.route("/state", methods=["GET"])
 def state():
-    try:
-        return jsonify(env.state())
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    return jsonify(env.state())
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=7860)
