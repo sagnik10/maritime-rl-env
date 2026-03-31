@@ -1,3 +1,6 @@
 name: maritime-env
-description: Maritime routing simulation environment
-entrypoint: env.environment:MaritimeEnv
+
+environment:
+  reset: /reset
+  step: /step
+  state: /state
