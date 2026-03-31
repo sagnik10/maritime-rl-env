@@ -1,3 +1,13 @@
+---
+title: Maritime Environment System
+emoji: 🌊
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # Maritime Environment System
 
 ## Overview
@@ -146,7 +156,7 @@ Takes action and returns next state
 ### Request Flow
 
 1. Client sends action
-2. API converts JSON ? Action object
+2. API converts JSON → Action object
 3. Environment step() executed
 4. Response serialized into JSON
 
@@ -175,7 +185,7 @@ Runs Flask + SocketIO server for real-time updates.
    - weather data
    - conflict events
 
-2. Emits via socket:
+2. Emits via socket  
    event: "update"
 
 3. Frontend receives and renders:
@@ -247,9 +257,10 @@ Used for drawing routes on map.
 
 File: services/ais.py
 
-Ships are simulated as persistent objects:
+Ships are simulated as persistent objects.
 
 Each ship has:
+
 - lat
 - lon
 - velocity components
@@ -305,15 +316,15 @@ Each step prints:
 
 Environment:
 
-state ? step(action) ? new state
+state → step(action) → new state
 
 API:
 
-HTTP request ? environment ? JSON response
+HTTP request → environment → JSON response
 
 UI:
 
-backend emit ? frontend render
+backend emit → frontend render
 
 ---
 
@@ -324,6 +335,7 @@ backend emit ? frontend render
 python -m env.api
 
 Provides:
+
 - simulation API
 - agent interaction
 
@@ -334,6 +346,7 @@ Provides:
 python -m web.app
 
 Provides:
+
 - visualization
 - animation
 - interaction
