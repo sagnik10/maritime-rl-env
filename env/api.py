@@ -4,7 +4,7 @@ from env.environment import MaritimeEnv, Action
 app = Flask(__name__)
 env = MaritimeEnv()
 
-@app.route("/")
+@app.route("/", methods=["GET"])
 def home():
     return jsonify({"status": "running"})
 
