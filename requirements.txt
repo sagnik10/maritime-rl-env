@@ -4,3 +4,4 @@ eventlet==0.36.1
 requests==2.31.0
 pydantic==2.7.1
 numpy==1.26.4
+openenv-core>=0.2.0
