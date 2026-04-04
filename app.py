@@ -1,7 +1,10 @@
-import gradio as gr 
- 
-def status(): 
-    return "Maritime RL Environment is running" 
- 
-demo = gr.Interface(fn=status, inputs=[], outputs="text", title="Maritime RL Environment") 
-demo.launch(server_name="0.0.0.0", server_port=7860) 
+from flask import Flask
+
+app = Flask(__name__)
+
+@app.route("/")
+def home():
+    return "Maritime Environment Simulation Running"
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=7860)
