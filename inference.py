@@ -1,65 +1,53 @@
-import requests
-import time
-import sys
+import asyncio
+import httpx
+import os
 
-BASE_URL = "http://localhost:7860"
+ENV_URL = os.getenv("ENV_URL", "http://localhost:8000")
+LLM_URL = os.getenv("LLM_URL", "http://localhost:8001/generate")
+MAX_STEPS = 40
 
-def wait_for_env():
-    """Wait for the environment container to become ready."""
-    for _ in range(30):  # try for ~30 seconds
+
+async def call_llm(obs):
+    async with httpx.AsyncClient(timeout=20.0) as client:
         try:
-            r = requests.post(f"{BASE_URL}/reset", timeout=5)
-            if r.status_code == 200:
-                print("Environment ready")
-                return True
-        except Exception as e:
-            print("Waiting for environment...", str(e))
-
-        time.sleep(1)
-
-    print("Environment not reachable")
-    return False
+            r = await client.post(LLM_URL, json={"observation": obs})
+            return r.json()
+        except:
+            return {"action": "noop"}
 
 
-def run_episode():
-    done = False
+async def reset_env(client):
+    r = await client.post(f"{ENV_URL}/reset")
+    return r.json()
 
-    while not done:
-        action = {
-            "action": {
-                "heading": 1.0,
-                "speed": 1.0
-            }
-        }
 
+async def step_env(client, action):
+    r = await client.post(f"{ENV_URL}/step", json={"action": action})
+    return r.json()
+
+
+async def run_episode(client):
+    obs = await reset_env(client)
+
+    for _ in range(MAX_STEPS):
         try:
-            r = requests.post(f"{BASE_URL}/step", json=action, timeout=5)
+            action = await asyncio.wait_for(call_llm(obs), timeout=20)
+        except:
+            action = {"action": "noop"}
 
-            if r.status_code != 200:
-                print("Step request failed:", r.status_code)
-                return
+        step = await step_env(client, action)
 
-            data = r.json()
-            print(data)
+        obs = step.get("observation", {})
+        done = step.get("done", False)
 
-            done = data.get("done", True)
-
-        except Exception as e:
-            print("Step error:", str(e))
-            return
+        if done:
+            break
 
 
-def main():
-    try:
-        if not wait_for_env():
-            sys.exit(0)
-
-        run_episode()
-
-    except Exception as e:
-        print("Unexpected error:", str(e))
-        sys.exit(0)
+async def main():
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        await run_episode(client)
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(asyncio.wait_for(main(), timeout=1500))
