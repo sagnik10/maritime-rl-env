@@ -20,12 +20,18 @@ async def step_env(client, action):
         return {}
 
 async def run_episode(client):
+    print("[START] task=maritime", flush=True)
+
     obs = await reset_env(client)
 
     if not isinstance(obs, dict):
         obs = {}
 
-    for _ in range(MAX_STEPS):
+    total_reward = 0
+    step_count = 0
+
+    for i in range(MAX_STEPS):
+
         action = {"action": "noop"}
 
         step = await step_env(client, action)
@@ -34,10 +40,18 @@ async def run_episode(client):
             continue
 
         obs = step.get("observation", {})
+        reward = step.get("reward", 0)
         done = step.get("done", False)
+
+        total_reward += reward
+        step_count += 1
+
+        print(f"[STEP] step={i+1} reward={reward}", flush=True)
 
         if done:
             break
+
+    print(f"[END] task=maritime score={total_reward} steps={step_count}", flush=True)
 
 async def main():
     async with httpx.AsyncClient(timeout=10.0) as client:
