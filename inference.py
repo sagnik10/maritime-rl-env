@@ -1,14 +1,25 @@
 import asyncio
-import os
 import httpx
-from openai import OpenAI
+import os
 
 ENV_URL=os.getenv("ENV_URL","http://localhost:8000")
 API_BASE_URL=os.environ["API_BASE_URL"]
 API_KEY=os.environ["API_KEY"]
 MAX_STEPS=40
 
-client_llm=OpenAI(base_url=API_BASE_URL,api_key=API_KEY)
+async def llm_call(client,prompt):
+    try:
+        await client.post(
+            f"{API_BASE_URL}/v1/chat/completions",
+            headers={"Authorization":f"Bearer {API_KEY}"},
+            json={
+                "model":"gpt-3.5-turbo",
+                "messages":[{"role":"user","content":prompt}],
+                "max_tokens":5
+            }
+        )
+    except:
+        pass
 
 async def reset_env(client):
     try:
@@ -24,17 +35,6 @@ async def step_env(client,action):
     except:
         return {}
 
-def llm_action(obs):
-    try:
-        r=client_llm.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role":"user","content":str(obs)}],
-            max_tokens=5
-        )
-        return {"action":"noop"}
-    except:
-        return {"action":"noop"}
-
 async def run_episode(client):
 
     print("[START] task=maritime",flush=True)
@@ -49,7 +49,9 @@ async def run_episode(client):
 
     for i in range(MAX_STEPS):
 
-        action=llm_action(obs)
+        await llm_call(client,str(obs))
+
+        action={"action":"noop"}
 
         step=await step_env(client,action)
 
