@@ -3,8 +3,9 @@ import httpx
 import os
 
 ENV_URL=os.getenv("ENV_URL","http://localhost:8000")
-API_BASE_URL=os.environ["API_BASE_URL"]
-API_KEY=os.environ["API_KEY"]
+API_BASE_URL=os.environ.get("API_BASE_URL")
+API_KEY=os.environ.get("API_KEY")
+
 MAX_STEPS=40
 
 async def llm_call(client,prompt):
