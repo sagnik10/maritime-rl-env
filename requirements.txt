@@ -1,2 +1,7 @@
 flask==3.0.3
 gunicorn==21.2.0
+requests==2.31.0
+numpy
+gymnasium
+stable-baselines3
+torch
