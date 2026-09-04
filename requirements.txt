@@ -1,0 +1,15 @@
+flask==3.0.3
+flask-socketio==5.3.6
+gunicorn==21.2.0
+requests==2.31.0
+numpy
+gymnasium
+stable-baselines3
+torch
+fastapi
+uvicorn
+httpx
+openai==3.8.0
+websockets==17.1
+numpy
+pydantic

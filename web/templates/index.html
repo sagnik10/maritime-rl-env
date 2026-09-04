@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#071d2a">
+  <meta name="description" content="Marlin Ops maritime operations console with live open weather, marine, and port data.">
+  <title>Marlin Ops · Maritime intelligence</title>
+  <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="Marlin Ops dashboard">
+        <img src="{{ url_for('static', filename='favicon.svg') }}" alt="" class="brand-mark">
+        <span><strong>MARLIN</strong><small>OPS CONSOLE</small></span>
+      </a>
+      <div class="topbar-status"><span class="pulse-dot"></span><span>LIVE OPS</span><span class="divider"></span><span id="utc-clock">--:-- UTC</span></div>
+      <div class="source-chips"><span id="sea-status" class="chip chip-live"><i data-lucide="waves"></i> AIS loading</span><span id="air-status" class="chip chip-air"><i data-lucide="plane"></i> ADS-B loading</span></div>
+    </header>
+
+    <main class="workspace">
+      <section class="map-section" aria-label="Fleet map">
+        <div id="map"></div>
+        <div class="map-topline">
+          <div class="search-box">
+            <i data-lucide="search"></i>
+            <input id="port-search" aria-label="Search for a port" autocomplete="off" placeholder="Search a real port (e.g. Singapore)">
+            <kbd>Enter</kbd>
+            <div id="port-results" class="search-results" hidden></div>
+          </div>
+          <div class="map-actions" role="group" aria-label="Traffic layers">
+            <button class="map-action active" data-layer="sea" aria-pressed="true"><i data-lucide="ship-wheel"></i> Sea</button>
+            <button class="map-action active" data-layer="air" aria-pressed="true"><i data-lucide="plane"></i> Air</button>
+            <button class="map-action active" data-layer="places" aria-pressed="true"><i data-lucide="map-pin"></i> Places</button>
+            <button class="map-action active" data-layer="tracks" aria-pressed="true" title="Show current course vectors"><i data-lucide="route"></i> Tracks</button>
+            <button class="map-action" data-layer="risk" aria-pressed="false"><i data-lucide="shield-alert"></i> Risk</button>
+            <button id="reset-map" class="map-action map-reset" type="button" title="Reset to the fleet overview"><i data-lucide="maximize-2"></i> Reset</button>
+          </div>
+        </div>
+        <div class="map-legend"><span><b class="legend-dot sea-dot"></b> Live AIS vessel</span><span><b class="legend-dot air-dot"></b> Live ADS-B aircraft</span><span><b class="legend-dot red"></b> Scenario risk</span></div>
+        <div id="traffic-readout" class="traffic-readout" aria-live="polite">Loading live sea and air traffic…</div>
+        <div class="map-attribution">Live basemap: © OpenStreetMap contributors</div>
+        <section class="fleet-strip" aria-label="Active voyages">
+          <div class="fleet-strip-title"><span>ACTIVE VOYAGES</span><strong id="fleet-count">6</strong></div>
+          <div id="voyage-list" class="voyage-list"></div>
+        </section>
+      </section>
+
+      <aside class="control-panel">
+        <section class="panel-section vessel-card">
+          <div class="eyebrow"><span>SELECTED VESSEL</span><span id="connection-state" class="connection"><i></i> CONNECTED</span></div>
+          <div class="vessel-heading"><div id="vessel-icon" class="vessel-icon"><i data-lucide="ship"></i></div><div><h1 id="vessel-name">Loading fleet…</h1><p id="vessel-meta">—</p></div></div>
+          <div class="metric-grid">
+            <div><span>SPEED</span><strong id="metric-speed">—</strong><small>kn</small></div>
+            <div><span>COURSE</span><strong id="metric-course">—</strong><small>°T</small></div>
+            <div><span>VOYAGE</span><strong id="metric-progress">—</strong><small>% done</small></div>
+          </div>
+          <button id="focus-vessel" class="secondary-button"><i data-lucide="locate-fixed"></i> Focus on map</button>
+        </section>
+
+        <section class="panel-section route-inspector">
+          <div class="section-title"><div><i data-lucide="route"></i><span>ROUTE INSPECTOR</span></div><span id="route-kind" class="data-badge">Planned route</span></div>
+          <h2 id="route-title">Mumbai to Singapore</h2>
+          <p id="route-description" class="conditions-location">Named corridor stops and operational ETA.</p>
+          <div id="route-stops" class="route-stops"></div>
+          <div id="route-summary" class="route-summary"></div>
+        </section>
+
+        <section class="panel-section conditions-card">
+          <div class="section-title"><div><i data-lucide="cloud-sun"></i><span>CONDITIONS</span></div><span id="conditions-badge" class="data-badge">Select a vessel</span></div>
+          <p id="conditions-location" class="conditions-location">Live marine conditions will appear here.</p>
+          <div id="conditions-grid" class="conditions-grid empty-state"><span>Select a vessel or map point to request live open data.</span></div>
+          <p id="conditions-source" class="source-note">Data source will be shown here.</p>
+        </section>
+
+        <section class="panel-section advisory-section">
+          <div class="section-title"><div><i data-lucide="bell-ring"></i><span>ADVISORIES</span></div><span id="advisory-count" class="count-badge">3</span></div>
+          <div id="advisory-list" class="advisory-list"></div>
+        </section>
+
+        <section class="panel-section use-cases-section">
+          <div class="section-title"><div><i data-lucide="sparkles"></i><span>OPS COPILOT</span></div><span class="muted">10 use cases</span></div>
+          <div class="use-case-grid">
+            {% for item in use_cases %}
+            <button class="use-case" data-intent="{{ item.id }}" data-prompt="{{ item.prompt }}" title="{{ item.description }}"><i data-lucide="{{ item.icon }}"></i><span>{{ item.title }}</span></button>
+            {% endfor %}
+          </div>
+          <div id="copilot-result" class="copilot-result" hidden aria-live="polite"></div>
+          <form id="copilot-form" class="copilot-form">
+            <input id="copilot-input" aria-label="Ask operations copilot" placeholder="Ask about the selected vessel…">
+            <button aria-label="Send copilot question" type="submit"><i data-lucide="arrow-up"></i></button>
+          </form>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/socket.io-client@4.7.5/dist/socket.io.min.js"></script>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

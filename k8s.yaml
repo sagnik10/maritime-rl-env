@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: maritime-ai
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: maritime
+  template:
+    metadata:
+      labels:
+        app: maritime
+    spec:
+      containers:
+      - name: maritime
+        image: maritime:latest
+        ports:
+        - containerPort: 7860

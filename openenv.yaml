@@ -1,0 +1,6 @@
+name: maritime-env
+
+environment:
+  reset: /reset
+  step: /step
+  state: /state
